@@ -7,11 +7,14 @@ import sqlite3
 import asyncio
 from datetime import datetime, timedelta
 import requests
+global spawned
+message_count = 0
+
 
 my_secret = os.environ['TOKENN']
 
 
-pokemon_caught = []
+pokemon_caught = {}
 money_raid_counters = {
     "Aerodactyl": "Kyogre-Primal, Magnezone",
     "Aurorus": "Any fighting type (Lucario, Mewtwo, medicham)",
@@ -355,18 +358,22 @@ async def guess(interaction: discord.Interaction):
 
 
 @tree.command(name="catch", description="Catch the pokemon")
-async def guess(interaction: discord.Interaction):
+async def guess(interaction: discord.Interaction, pokemon: str):
     name = interaction.data['options'][0]['value']
     url = f'https://pokeapi.co/api/v2/pokemon/{name}'
     response = requests.get(url)
-    pokemon = response.json()
-    if pokemon['name'] == name:  # If the Pokémon name is correct
+    #pokemon = response.json()
+
+    if pokemon == name:  # If the Pokémon name is correct
         user_pokemon = pokemon_caught.get(interaction.user.id, [])
         user_pokemon.append(name)
         pokemon_caught[interaction.user.id] = user_pokemon
+        spawned = False
         await interaction.response.send_message(f'Congratulations {interaction.user.name}, you caught a {name}!')
     else:
+        spawned = False
         await interaction.response.send_message(f'Oh no! The wild {name} escaped!')
+
 
 @client.event
 async def on_message(msg):
@@ -392,14 +399,14 @@ async def on_message(msg):
         else:
             pass
     if msg.channel.id == 650165688941412382 and msg.author != client.user:
-        global message_count
         if msg.author == client.user:
             return
-
+        global message_count
         message_count += 1
 
         if message_count >= 5:  # Spawn a Pokémon every 5 messages
             message_count = 0
+
             pokemon_id = random.randint(1, 151)  # Choose a random Pokémon from the first 151
             url = f'https://pokeapi.co/api/v2/pokemon/{pokemon_id}'
             response = requests.get(url)
@@ -408,6 +415,10 @@ async def on_message(msg):
             pokemon_image_url = pokemon['sprites']['front_default']
             embed = discord.Embed(title=f"A wild {pokemon_name} has appeared!")
             embed.set_image(url=pokemon_image_url)
+            spawned = True
+            await msg.channel.send(embed=embed)
+
+
 
 keep_alive()
 client.run(my_secret)
