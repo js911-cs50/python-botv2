@@ -7,7 +7,8 @@ import sqlite3
 import asyncio
 from datetime import datetime, timedelta
 import requests
-global spawned
+
+message_count_lock = asyncio.Lock()
 message_count = 0
 
 
@@ -357,68 +358,68 @@ async def guess(interaction: discord.Interaction):
     await interaction.response.send_message('Guess the correct button for money', view=view)
 
 
-@tree.command(name="catch", description="Catch the pokemon")
-async def guess(interaction: discord.Interaction, pokemon: str):
-    name = interaction.data['options'][0]['value']
-    url = f'https://pokeapi.co/api/v2/pokemon/{name}'
-    response = requests.get(url)
-    #pokemon = response.json()
+# @tree.command(name="catch", description="Catch the pokemon")
+# async def guess(interaction: discord.Interaction, pokemon: str):
+#     name = interaction.data['options'][0]['value']
+#     url = f'https://pokeapi.co/api/v2/pokemon/{name}'
+#     response = requests.get(url)
+#     #pokemon = response.json()
+#
+#     if pokemon == name:  # If the Pokémon name is correct
+#         user_pokemon = pokemon_caught.get(interaction.user.id, [])
+#         user_pokemon.append(name)
+#         pokemon_caught[interaction.user.id] = user_pokemon
+#         spawned = False
+#         user = interaction.user
+#         db = sqlite3.connect('bank.sqlite')
+#         cursor = db.cursor()
+#         cursor.execute("SELECT * FROM main WHERE member_id = ?", (user.id,))
+#         result = cursor.fetchone()
+#         if result:
+#             cursor.execute("INSERT INTO pokemon VALUES (?, ?)", (user, pokemon))
+#             db.commit()
+#             db.close()
+#
+#         await interaction.response.send_message(f'Congratulations {interaction.user.name}, you caught a {name}!')
+#     else:
+#         await interaction.response.send_message(f'Oh no! The wild {name} escaped!')
+#     spawned_pokemon = None
 
-    if pokemon == name:  # If the Pokémon name is correct
-        user_pokemon = pokemon_caught.get(interaction.user.id, [])
-        user_pokemon.append(name)
-        pokemon_caught[interaction.user.id] = user_pokemon
-        spawned = False
-        await interaction.response.send_message(f'Congratulations {interaction.user.name}, you caught a {name}!')
-    else:
-        spawned = False
-        await interaction.response.send_message(f'Oh no! The wild {name} escaped!')
-
+# @tree.command(name="pokemon", description="Shows your pokemon")
+# async def pokemon(interaction: discord.Interaction):
+#     user = interaction.user
+#     db = sqlite3.connect('bank.sqlite')
+#     cursor = db.cursor()
+#     cursor.execute("SELECT * FROM main WHERE member_id = ?", (user.id,))
+#     result = cursor.fetchone()
+#     if result:
+#         cursor.execute("SELECT pokemon_name FROM pokemon WHERE user_id = ?", (user,))
+#         pokemon = cursor.fetchall()
+#         db.close()
+#         return [p[0] for p in pokemon]
 
 @client.event
 async def on_message(msg):
-    if msg.channel.id == 799655169008467968 and msg.author != client.user:
-        embed = msg.embeds[0]
-        if "New raid" in embed.description:
-            _, pokemon = embed.description.split("defeat ")
-            pokemon = pokemon.replace("?", "")
-            pokemon = pokemon.replace("**", "")
-            if pokemon in money_raid_counters:
-                await msg.channel.send(
-                    f"<@&625783594966843403>  {pokemon} Potential money raid! Try: {money_raid_counters[pokemon]}")
-            elif pokemon in cool_raid or pokemon.__contains__("Arceus"):
-                await msg.channel.send(f"<@&625783594966843403> {pokemon} get pinged")
-            else:
-                await msg.channel.send(f"{pokemon} not added")
-        elif "New Mega Raid" in embed.description:
-            _, pokemon = embed.description.split("defeat ")
-            pokemon = pokemon.replace("?", "")
-            pokemon = pokemon.replace("**", "")
-            if pokemon in mega_raid:
-                await msg.channel.send(f"<@&625783594966843403> {pokemon} get pinged")
-        else:
-            pass
     if msg.channel.id == 650165688941412382 and msg.author != client.user:
-        if msg.author == client.user:
-            return
         global message_count
-        message_count += 1
+
+        async with message_count_lock:
+            message_count += 1
 
         if message_count >= 5:  # Spawn a Pokémon every 5 messages
             message_count = 0
+            print(message_count)
 
             pokemon_id = random.randint(1, 151)  # Choose a random Pokémon from the first 151
             url = f'https://pokeapi.co/api/v2/pokemon/{pokemon_id}'
             response = requests.get(url)
             pokemon = response.json()
-            pokemon_name = pokemon['name']
+            global spawned_pokemon
+            spawned_pokemon = pokemon['name']
             pokemon_image_url = pokemon['sprites']['front_default']
-            embed = discord.Embed(title=f"A wild {pokemon_name} has appeared!")
+            embed = discord.Embed(title=f"A wild {spawned_pokemon} has appeared!")
             embed.set_image(url=pokemon_image_url)
-            spawned = True
             await msg.channel.send(embed=embed)
-
-
 
 keep_alive()
 client.run(my_secret)
