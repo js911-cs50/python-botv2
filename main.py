@@ -130,7 +130,42 @@ async def guess(interaction: discord.Interaction, pokemon_name: str):
     global spawned_pokemon
     spawned_pokemon = None
 
+@tree.command(name="create_pokemon_table", description="Create a pokemon table in the database")
+async def create_pokemon_table(interaction: discord.Interaction):
+    db = sqlite3.connect('bank.sqlite')  # Make sure to use quotes for the database name
+    cursor = db.cursor()
 
+    # Create table
+    cursor.execute('''CREATE TABLE IF NOT EXISTS pokemon
+                     (user_id text, pokemon_name text)''')
+
+    # Save (commit) the changes
+    db.commit()
+
+    # Close the connection
+    cursor.close()
+    db.close()
+
+    await interaction.response.send_message('Pokemon table created in the database.')
+
+
+@tree.command(name="pokemon", description="Shows your pokemon")
+async def pokemon(interaction: discord.Interaction):
+    user = interaction.user
+    db = sqlite3.connect('bank.sqlite')
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM main WHERE member_id = ?", (user.id,))
+    result = cursor.fetchone()
+    if result:
+        cursor.execute("SELECT pokemon_name FROM pokemon WHERE user_id = ?", (user.id,))
+        pokemon = cursor.fetchall()
+        embed = discord.Embed(title="Your Pokemon")
+        for poke in pokemon:
+            the_poke = f"{poke[0]}"
+            embed.add_field(name=f"{the_poke}", inline=True)
+            await interaction.response.send_message(embed=embed)
+    db.close()
+    cursor.close()
 
 @client.event
 async def on_message(msg):
@@ -143,7 +178,7 @@ async def on_message(msg):
             if message_count >= 5:  # Spawn a Pokémon every 5 messages
                 message_count = 0
 
-                pokemon_id = random.randint(1, 151)  # Choose a random Pokémon from the first 151
+                pokemon_id = random.randint(1, 1025)  # Choose a random Pokémon from the first 151
                 url = f'https://pokeapi.co/api/v2/pokemon/{pokemon_id}'
                 response = requests.get(url)
                 pokemon = response.json()
