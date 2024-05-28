@@ -207,17 +207,19 @@ async def on_message(msg):
             if message_count >= 5:  # Spawn a Pokémon every 5 messages
                 message_count = 0
 
+
                 pokemon_id = random.randint(1, 1025)  # Choose a random Pokémon from the first 151
                 url = f'https://pokeapi.co/api/v2/pokemon/{pokemon_id}'
                 response = requests.get(url)
                 pokemon = response.json()
 
-                global spawned_pokemon
-                spawned_pokemon = pokemon['name']
-                pokemon_image_url = pokemon['sprites']['front_default']
-                embed = discord.Embed(title=f"A wild {spawned_pokemon} has appeared!")
-                embed.set_image(url=pokemon_image_url)
-                await msg.channel.send(embed=embed)
+                if "forms" not in pokemon:
+                    global spawned_pokemon
+                    spawned_pokemon = pokemon['name']
+                    pokemon_image_url = pokemon['sprites']['front_default']
+                    embed = discord.Embed(title=f"A wild {spawned_pokemon} has appeared!")
+                    embed.set_image(url=pokemon_image_url)
+                    await msg.channel.send(embed=embed)
 
 keep_alive()
 client.run(my_secret)
