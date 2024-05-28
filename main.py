@@ -110,23 +110,39 @@ async def guess(interaction: discord.Interaction, pokemon_name: str):
     response = requests.get(url)
     pokemon_data = response.json()
 
-    if pokemon_data['name'] == pokemon_name:  # If the Pokémon name is correct
+    if pokemon_data['name'] == pokemon_name:
         user_pokemon = pokemon_caught.get(interaction.user.id, [])
         user_pokemon.append(pokemon_name)
         pokemon_caught[interaction.user.id] = user_pokemon
+
         user = interaction.user
-        db = sqlite3.connect('bank.sqlite')
-        cursor = db.cursor()
-        cursor.execute("SELECT * FROM main WHERE member_id = ?", (user.id,))
-        result = cursor.fetchone()
-        if result:
-            cursor.execute("INSERT INTO pokemon VALUES (?, ?)", (user.id, pokemon_name))
+        try:
+            db = sqlite3.connect('bank.sqlite')
+            cursor = db.cursor()
+
+            # Check for user record (assuming user_id is a column in "main")
+            cursor.execute("SELECT * FROM main WHERE member_id = ?", (user.id,))
+            result = cursor.fetchone()
+
+            if result:
+                # Insert Pokemon data if user record exists
+                cursor.execute("INSERT INTO pokemon VALUES (?, ?)", (user.id, pokemon_name))
+            else:
+                # Handle case where user record is missing (optional)
+                print(f"User with ID {user.id} not found in main table")
+
             db.commit()
+
+        except sqlite3.Error as err:
+            print(f"Database error: {err}")
+
+        finally:
             db.close()
 
         await interaction.response.send_message(f'Congratulations {interaction.user.name}, you caught a {pokemon_name}!')
     else:
         await interaction.response.send_message(f'Oh no! The wild {pokemon_name} escaped!')
+
     global spawned_pokemon
     spawned_pokemon = None
 
@@ -149,24 +165,34 @@ async def create_pokemon_table(interaction: discord.Interaction):
     await interaction.response.send_message('Pokemon table created in the database.')
 
 
+
 @tree.command(name="pokemon", description="Shows your pokemon")
 async def pokemon(interaction: discord.Interaction):
     user = interaction.user
-    db = sqlite3.connect('bank.sqlite')
-    cursor = db.cursor()
-    cursor.execute("SELECT * FROM main WHERE member_id = ?", (user.id,))
-    result = cursor.fetchone()
-    if result:
-        cursor.execute("SELECT pokemon_name FROM pokemon WHERE user_id = ?", (user.id,))
-        pokemon = cursor.fetchall()
-        embed = discord.Embed(title="Your Pokemon")
-        for poke in pokemon:
-            the_poke = f"{poke[0]}"
-            embed.add_field(name=f"{the_poke}", inline=True)
-            await interaction.response.send_message(embed=embed)
-    db.close()
-    cursor.close()
+    try:
+        db = sqlite3.connect('bank.sqlite')
+        cursor = db.cursor()
 
+        cursor.execute("SELECT * FROM main WHERE member_id = ?", (user.id,))
+        result = cursor.fetchone()
+
+        if result:
+            cursor.execute("SELECT pokemon_name FROM pokemon WHERE user_id = ?", (user.id,))
+            pokemon = cursor.fetchall()
+            if pokemon:
+                embed = discord.Embed(title="Your Pokemon")
+                for poke in pokemon:
+                    the_poke = f"{poke[0]}"
+                    embed.add_field(name=f"{the_poke}", value=f"{the_poke}", inline=True)
+                await interaction.response.send_message(embed=embed)
+            else:
+                await interaction.response.send_message("You haven't caught any Pokemon yet!")
+
+    except sqlite3.Error as err:
+        print(f"Database error: {err}")
+    finally:
+        db.close()
+        cursor.close()
 @client.event
 async def on_message(msg):
     if msg.channel.id == 650165688941412382 and msg.author != client.user:
