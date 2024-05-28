@@ -104,6 +104,7 @@ async def start(interaction: discord.Interaction):
     cursor.close()
     db.close()
 
+
 @tree.command(name="catch", description="Catch the pokemon")
 async def guess(interaction: discord.Interaction, pokemon_name: str):
     url = f'https://pokeapi.co/api/v2/pokemon/{pokemon_name}'
@@ -146,6 +147,7 @@ async def guess(interaction: discord.Interaction, pokemon_name: str):
     global spawned_pokemon
     spawned_pokemon = None
 
+
 @tree.command(name="create_pokemon_table", description="Create a pokemon table in the database")
 async def create_pokemon_table(interaction: discord.Interaction):
     db = sqlite3.connect('bank.sqlite')  # Make sure to use quotes for the database name
@@ -163,7 +165,6 @@ async def create_pokemon_table(interaction: discord.Interaction):
     db.close()
 
     await interaction.response.send_message('Pokemon table created in the database.')
-
 
 
 @tree.command(name="pokemon", description="Shows your pokemon")
@@ -193,6 +194,8 @@ async def pokemon(interaction: discord.Interaction):
     finally:
         db.close()
         cursor.close()
+
+
 @client.event
 async def on_message(msg):
     if msg.channel.id == 650165688941412382 and msg.author != client.user:
